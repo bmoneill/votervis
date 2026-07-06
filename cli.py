@@ -140,7 +140,7 @@ _PARTIES = [
     "Libertarian",
     "Workers' Party",
     "Civic Alliance",
-    "People' Party",
+    "People's Party",
     "Future Party",
     "United Front",
     "Freedom Party",
