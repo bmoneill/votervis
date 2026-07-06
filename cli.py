@@ -5,6 +5,7 @@ Entry point: run_cli()
 """
 
 import os
+import signal
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -193,6 +194,12 @@ _SYSTEMS: list[tuple] = [
 ]
 
 
+# SIGINT helper
+def handle_sigint(sig, frame):
+    print("\nGoodbye.")
+    sys.exit(0)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,6 +207,8 @@ _SYSTEMS: list[tuple] = [
 
 def run_cli() -> None:
     """Main entry point for the VOTERVIS interactive CLI."""
+
+    signal.signal(signal.SIGINT, handle_sigint)
     console.print(
         Panel.fit(
             "[bold cyan]VOTERVIS[/bold cyan]\n"
@@ -426,6 +435,8 @@ def _setup_ams(candidates: list) -> AMSElection:
 
             if entry.lower() == "done":
                 break
+            if entry.lower() == "quit":
+                exit(0)
             parts = [p.strip() for p in entry.split(",", 1)]
             if len(parts) != 2 or not parts[0] or not parts[1]:
                 console.print(
