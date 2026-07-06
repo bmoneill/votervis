@@ -38,6 +38,116 @@ from systems.base import BallotType
 # ─────────────────────────────────────────────────────────────────────────────
 console = Console()
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Random candidate generation pools
+# ─────────────────────────────────────────────────────────────────────────────
+_FIRST_NAMES = [
+    "Alice",
+    "Bob",
+    "Carol",
+    "David",
+    "Emma",
+    "Frank",
+    "Grace",
+    "Henry",
+    "Isla",
+    "James",
+    "Karen",
+    "Liam",
+    "Maya",
+    "Noah",
+    "Olivia",
+    "Peter",
+    "Quinn",
+    "Rachel",
+    "Samuel",
+    "Tara",
+    "Uma",
+    "Victor",
+    "Wendy",
+    "Yasmine",
+    "Ahmed",
+    "Beatrice",
+    "Carlos",
+    "Diana",
+    "Elena",
+    "Felix",
+    "Gabriella",
+    "Hassan",
+    "Ingrid",
+    "Julian",
+    "Katrina",
+    "Lorenzo",
+    "Miriam",
+    "Nathan",
+    "Priya",
+    "Rosa",
+    "Santiago",
+    "Theresa",
+    "Vladimir",
+    "Willow",
+    "Yusuf",
+    "Zoe",
+]
+_LAST_NAMES = [
+    "Smith",
+    "Jones",
+    "Williams",
+    "Taylor",
+    "Brown",
+    "Davies",
+    "Evans",
+    "Wilson",
+    "Thomas",
+    "Roberts",
+    "Johnson",
+    "Walker",
+    "Wright",
+    "Robinson",
+    "Harris",
+    "Martin",
+    "Jackson",
+    "Lee",
+    "Garcia",
+    "Martinez",
+    "Anderson",
+    "Chen",
+    "Patel",
+    "Khan",
+    "Ali",
+    "Singh",
+    "Nakamura",
+    "Santos",
+    "Oliveira",
+    "Mueller",
+    "Rossi",
+    "Dubois",
+    "Johansson",
+    "Kowalski",
+    "Novak",
+    "Costa",
+]
+_PARTIES = [
+    "Labour",
+    "Conservative",
+    "Liberal Democrat",
+    "Green",
+    "Reform",
+    "Progressive",
+    "Alliance",
+    "National",
+    "Social Democrat",
+    "Libertarian",
+    "Workers' Party",
+    "Civic Alliance",
+    "People' Party",
+    "Future Party",
+    "United Front",
+    "Freedom Party",
+    "New Democracy",
+    "Independent",
+]
+
 # (class, menu label, one-line description)
 _SYSTEMS: list[tuple] = [
     (
@@ -193,12 +303,36 @@ def select_system():
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _generate_candidates(n: int, existing: list[Candidate]) -> list[Candidate]:
+    """Return *n* randomly generated Candidate objects that don't clash with *existing*."""
+    existing_names = {c.name for c in existing}
+    # Assign parties first so each candidate within a batch gets a party drawn
+    # from a small, consistent set — this makes elections more interesting.
+    num_parties = max(2, min(len(_PARTIES), round(n**0.6)))
+    parties = random.sample(_PARTIES, num_parties)
+
+    # Build a large pool of unique full names then sample from it.
+    all_names = [
+        f"{first} {last}"
+        for first in _FIRST_NAMES
+        for last in _LAST_NAMES
+        if f"{first} {last}" not in existing_names
+    ]
+    random.shuffle(all_names)
+    chosen_names = all_names[:n]
+
+    return [Candidate(name, random.choice(parties)) for name in chosen_names]
+
+
 def setup_candidates() -> list:
     """Interactively collect candidates; returns list[Candidate]."""
     console.print()
     console.print(Rule("[bold]Candidate Setup[/bold]", style="blue"))
     console.print(
         "  [dim]Format: [bold]Name, Party[/bold]  — type [bold]done[/bold] when finished.[/dim]"
+    )
+    console.print(
+        "  [dim]Or type [bold]generate N[/bold] to add N random candidates instantly.[/dim]"
     )
     console.print("  [dim]At least 2 candidates are required.[/dim]\n")
 
@@ -219,6 +353,26 @@ def setup_candidates() -> list:
                 console.print("  [yellow]⚠[/yellow]  Need at least 2 candidates.")
                 continue
             break
+
+        # ── generate N ───────────────────────────────────────────────────────
+        parts_gen = entry.lower().split()
+        if (
+            len(parts_gen) == 2
+            and parts_gen[0] == "generate"
+            and parts_gen[1].isdigit()
+        ):
+            n = int(parts_gen[1])
+            if n < 1:
+                console.print("  [yellow]⚠[/yellow]  Enter a positive number.")
+                continue
+            generated = _generate_candidates(n, candidates)
+            for c in generated:
+                candidates.append(c)
+                console.print(f"  [green]✓[/green] Generated: [cyan]{c}[/cyan]")
+            console.print(
+                f"  [bold green]{len(generated)} candidate(s) added.[/bold green]"
+            )
+            continue
 
         parts = [p.strip() for p in entry.split(",", 1)]
         if len(parts) != 2 or not parts[0] or not parts[1]:
