@@ -336,7 +336,16 @@ def voting_loop(system, candidates: list, label: str = "VOTING") -> None:
             break
 
         if action == "v":
-            _cast_manual_ballot(system, candidates)
+            try:
+                count = IntPrompt.ask("  How many ballots to cast", default=1)
+                if count < 1:
+                    console.print("  [yellow]⚠[/yellow]  Enter a positive number.")
+                    continue
+            except (ValueError, EOFError):
+                console.print("  [yellow]⚠[/yellow]  Invalid number.")
+                continue
+
+            _cast_manual_ballot(system, candidates, count)
 
         elif action == "s":
             try:
@@ -366,9 +375,10 @@ def voting_loop(system, candidates: list, label: str = "VOTING") -> None:
         console.print()
 
 
-def _cast_manual_ballot(system, candidates: list) -> None:
-    """Prompt the user to cast one ballot matching the system's ballot type."""
+def _cast_manual_ballot(system, candidates: list, count: int = 1) -> None:
+    """Prompt the user to fill in one ballot, then submit it *count* times."""
     bt = system.ballot_type
+    times = f" [dim]×{count}[/dim]" if count > 1 else ""
 
     # ── SINGLE ──────────────────────────────────────────────────────────────
     if bt == BallotType.SINGLE:
@@ -379,9 +389,10 @@ def _cast_manual_ballot(system, candidates: list) -> None:
             try:
                 choice = IntPrompt.ask("  Enter candidate number")
                 if 1 <= choice <= len(candidates):
-                    system.cast_ballot(candidates[choice - 1])
+                    for _ in range(count):
+                        system.cast_ballot(candidates[choice - 1])
                     console.print(
-                        f"  [green]✓[/green] Voted for [cyan]{candidates[choice - 1]}[/cyan]"
+                        f"  [green]✓[/green] Voted for [cyan]{candidates[choice - 1]}[/cyan]{times}"
                     )
                     return
                 console.print(
@@ -410,9 +421,10 @@ def _cast_manual_ballot(system, candidates: list) -> None:
                 if len(indices) != len(set(indices)):
                     raise ValueError("Duplicate entries")
                 ranking = [candidates[i - 1] for i in indices]
-                system.cast_ballot(ranking)
+                for _ in range(count):
+                    system.cast_ballot(ranking)
                 arrow = " → ".join(f"[cyan]{c.name}[/cyan]" for c in ranking)
-                console.print(f"  [green]✓[/green] Recorded: {arrow}")
+                console.print(f"  [green]✓[/green] Recorded: {arrow}{times}")
                 return
             except (ValueError, EOFError, KeyboardInterrupt) as exc:
                 console.print(
@@ -437,12 +449,13 @@ def _cast_manual_ballot(system, candidates: list) -> None:
                 if any(i < 1 or i > len(candidates) for i in indices):
                     raise ValueError("Index out of range")
                 approved = {candidates[i - 1] for i in indices}
-                system.cast_ballot(approved)
+                for _ in range(count):
+                    system.cast_ballot(approved)
                 labels = ", ".join(
                     f"[cyan]{c.name}[/cyan]"
                     for c in sorted(approved, key=lambda x: x.name)
                 )
-                console.print(f"  [green]✓[/green] Approved: {labels}")
+                console.print(f"  [green]✓[/green] Approved: {labels}{times}")
                 return
             except (ValueError, EOFError, KeyboardInterrupt) as exc:
                 console.print(
@@ -487,10 +500,11 @@ def _cast_manual_ballot(system, candidates: list) -> None:
                 console.print("  [yellow]⚠[/yellow]  Invalid input.")
                 return
 
-        system.cast_ballot(con_cand, party_name)
+        for _ in range(count):
+            system.cast_ballot(con_cand, party_name)
         console.print(
             f"  [green]✓[/green] Constituency: [cyan]{con_cand.name}[/cyan]  │  "
-            f"Party: [cyan]{party_name}[/cyan]"
+            f"Party: [cyan]{party_name}[/cyan]{times}"
         )
 
 
